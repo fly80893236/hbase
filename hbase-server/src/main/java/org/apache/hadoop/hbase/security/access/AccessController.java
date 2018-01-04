@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -119,13 +119,6 @@ import org.apache.hadoop.hbase.security.Superusers;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.security.UserProvider;
 import org.apache.hadoop.hbase.security.access.Permission.Action;
-import org.apache.hbase.thirdparty.com.google.common.collect.ArrayListMultimap;
-import org.apache.hbase.thirdparty.com.google.common.collect.ImmutableSet;
-import org.apache.hbase.thirdparty.com.google.common.collect.ListMultimap;
-import org.apache.hbase.thirdparty.com.google.common.collect.Lists;
-import org.apache.hbase.thirdparty.com.google.common.collect.MapMaker;
-import org.apache.hbase.thirdparty.com.google.common.collect.Maps;
-import org.apache.hbase.thirdparty.com.google.common.collect.Sets;
 import org.apache.hadoop.hbase.snapshot.SnapshotDescriptionUtils;
 import org.apache.hadoop.hbase.util.ByteRange;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -137,6 +130,14 @@ import org.apache.hadoop.hbase.zookeeper.ZKWatcher;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.hbase.thirdparty.com.google.common.collect.ArrayListMultimap;
+import org.apache.hbase.thirdparty.com.google.common.collect.ImmutableSet;
+import org.apache.hbase.thirdparty.com.google.common.collect.ListMultimap;
+import org.apache.hbase.thirdparty.com.google.common.collect.Lists;
+import org.apache.hbase.thirdparty.com.google.common.collect.MapMaker;
+import org.apache.hbase.thirdparty.com.google.common.collect.Maps;
+import org.apache.hbase.thirdparty.com.google.common.collect.Sets;
 
 /**
  * Provides basic authorization checks for data access and administrative
@@ -2641,7 +2642,7 @@ public class AccessController implements MasterCoprocessor, RegionCoprocessor,
       throws IOException {
     requirePermission(getActiveUser(ctx), "replicateLogEntries", Action.WRITE);
   }
-
+  
   @Override
   public void  preClearCompactionQueues(ObserverContext<RegionServerCoprocessorEnvironment> ctx)
           throws IOException {
@@ -2735,8 +2736,7 @@ public class AccessController implements MasterCoprocessor, RegionCoprocessor,
 
   @Override
   public void preRequestLock(ObserverContext<MasterCoprocessorEnvironment> ctx, String namespace,
-      TableName tableName, RegionInfo[] regionInfos, String description)
-  throws IOException {
+      TableName tableName, RegionInfo[] regionInfos, String description) throws IOException {
     // There are operations in the CREATE and ADMIN domain which may require lock, READ
     // or WRITE. So for any lock request, we check for these two perms irrespective of lock type.
     String reason = String.format("Description=%s", description);
@@ -2749,18 +2749,22 @@ public class AccessController implements MasterCoprocessor, RegionCoprocessor,
     checkLockPermissions(getActiveUser(ctx), null, tableName, null, description);
   }
 
-  private void checkLockPermissions(User user, String namespace,
-      TableName tableName, RegionInfo[] regionInfos, String reason)
-  throws IOException {
+  private void checkLockPermissions(User user, String namespace, TableName tableName,
+      RegionInfo[] regionInfos, String reason) throws IOException {
     if (namespace != null && !namespace.isEmpty()) {
       requireNamespacePermission(user, reason, namespace, Action.ADMIN, Action.CREATE);
     } else if (tableName != null || (regionInfos != null && regionInfos.length > 0)) {
       // So, either a table or regions op. If latter, check perms ons table.
-      TableName tn = tableName != null? tableName: regionInfos[0].getTable();
-      requireTablePermission(user, reason, tn, null, null,
-          Action.ADMIN, Action.CREATE);
+      TableName tn = tableName != null ? tableName : regionInfos[0].getTable();
+      requireTablePermission(user, reason, tn, null, null, Action.ADMIN, Action.CREATE);
     } else {
       throw new DoNotRetryIOException("Invalid lock level when requesting permissions.");
     }
+  }
+
+  @Override
+  public void preExecuteProcedures(ObserverContext<RegionServerCoprocessorEnvironment> ctx)
+      throws IOException {
+    checkSystemOrSuperUser(getActiveUser(ctx));
   }
 }
